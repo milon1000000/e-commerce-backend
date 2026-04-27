@@ -59,12 +59,35 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB Connection
-mongoose
-  .connect(DATABASE, { autoIndex: true })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log("MongoDB connection error:", err));
+// mongoose
+//   .connect(DATABASE, { autoIndex: true })
+//   .then(() => console.log("MongoDB connected"))
+//   .catch((err) => console.log("MongoDB connection error:", err));
+
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) return;
+
+  try {
+    await mongoose.connect(DATABASE);
+    isConnected = true;
+    console.log("MongoDB connected");
+  } catch (err) {
+    console.log("MongoDB error:", err);
+  }
+};
+
+connectDB();
 
 // Start Server
+// app.listen(PORT, () => {
+//   console.log("Server started on port " + PORT);
+// });
+
 app.listen(PORT, () => {
   console.log("Server started on port " + PORT);
 });
+
+
+export default app;
