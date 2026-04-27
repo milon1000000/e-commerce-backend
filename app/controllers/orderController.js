@@ -49,11 +49,11 @@ export const paymentBkash = async (req, res) => {
       currency: "BDT",
       tran_id: tran_id,
 
-      success_url: `http://localhost:5000/api/v1/order/payment-bkash/success/${tran_id}`,
-      fail_url: `http://localhost:5000/api/v1/order/payment-bkash/fail/${tran_id}`,
-      cancel_url: `http://localhost:5000/api/v1/order/payment-bkash/fail/${tran_id}`,
+      success_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/success/${tran_id}`,
+      fail_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/fail/${tran_id}`,
+      cancel_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/fail/${tran_id}`,
 
-      ipn_url: "http://localhost:5000/ipn",
+      ipn_url: "https://e-commerce-backend-byuj.onrender.com/ipn",
 
       shipping_method: "Courier",
       product_name: "Cart Items",
@@ -106,7 +106,7 @@ export const handleSuccess = async (req, res) => {
       { new: true },
     );
 
-    res.redirect(`http://localhost:5173/success`);
+    res.redirect(`https://e-commerce-frontend-9dce.onrender.com/success`);
   } catch (error) {
     console.log(error);
     res.status(500).send("Payment success error");
@@ -118,7 +118,7 @@ export const handleFail = async (req, res) => {
 
     await Order.findByIdAndDelete(tran_id);
 
-    res.redirect(`http://localhost:5173/fail`);
+    res.redirect(`https://e-commerce-frontend-9dce.onrender.com/fail`);
   } catch (error) {
     console.log(error);
     res.status(500).send("Payment failed error");

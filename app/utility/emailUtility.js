@@ -2,8 +2,6 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
-
-
 export const sendMail = (token, email) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -17,7 +15,7 @@ export const sendMail = (token, email) => {
     to: email,
     subject: "Email Verification",
 
-    text: `Hi! There, You have recently visited our website and entered your email. Please follow the given link to verify your email http://localhost:5173/verify/${token} Thanks`,
+    text: `Hi! There, You have recently visited our website and entered your email. Please follow the given link to verify your email https://e-commerce-frontend-9dce.onrender.com/verify/${token} Thanks`,
   };
   transporter.sendMail(mailConfigurations, (error, info) => {
     if (error) throw Error(error);

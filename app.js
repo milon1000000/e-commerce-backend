@@ -24,12 +24,9 @@ const app = express();
 // CORS setup
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", 
-    
-    ],
-    credentials: true, 
-  })
+    origin: ["https://e-commerce-frontend-9dce.onrender.com"],
+    credentials: true,
+  }),
 );
 
 // Middleware
@@ -47,22 +44,15 @@ app.set("etag", WEB_CACHE);
 
 // Routes
 app.use("/api/v1/user", userRouter);
-app.use("/api/v1/product",productRoute);
-app.use("/api/v1/cart",cartRouter);
-app.use("/api/v1/order",orderRoute)
-
+app.use("/api/v1/product", productRoute);
+app.use("/api/v1/cart", cartRouter);
+app.use("/api/v1/order", orderRoute);
 
 app.get("/", (req, res) => {
   res.json({
     message: "NODE/EXPRESS IS RUNNING!",
   });
 });
-
-// MongoDB Connection
-// mongoose
-//   .connect(DATABASE, { autoIndex: true })
-//   .then(() => console.log("MongoDB connected"))
-//   .catch((err) => console.log("MongoDB connection error:", err));
 
 let isConnected = false;
 
@@ -81,13 +71,9 @@ const connectDB = async () => {
 connectDB();
 
 // Start Server
-// app.listen(PORT, () => {
-//   console.log("Server started on port " + PORT);
-// });
 
 app.listen(PORT, () => {
   console.log("Server started on port " + PORT);
 });
-
 
 export default app;
