@@ -15,7 +15,7 @@ export const sendMail = (otp, email) => {
     to: email,
     subject: "Email Verification",
 
-    text: `Your verify otp is ${otp} Thanks`,
+    text: `Your verify otp is ${otp}`,
   };
   transporter.sendMail(mailConfigurations, (error, info) => {
     if (error) throw Error(error);
