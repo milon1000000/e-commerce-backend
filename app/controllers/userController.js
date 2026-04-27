@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { TokenDecode, TokenEncode } from "../utility/tokenUtility.js";
 import { sendMail } from "../utility/emailUtility.js";
 import { sendOtp } from "../utility/sentOtp.js";
+import {emailUtility} from "../utility/emailUtility.js"
 import { v2 as cloudinary } from "cloudinary";
 import uploadOnCloudinary from "../config/cloudinary.js";
 
@@ -50,7 +51,7 @@ export const register = async (req, res) => {
     newUser.otpExpiry = otpExpiry;
     await newUser.save();
 
-    await sendOtp(otp, email);
+    await emailUtility(otp, email);
 
     return res.status(201).json({
       success: true,
