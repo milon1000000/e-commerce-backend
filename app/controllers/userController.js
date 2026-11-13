@@ -51,7 +51,11 @@ export const register = async (req, res) => {
     newUser.otpExpiry = otpExpiry;
     await newUser.save();
 
-    await sendMail(otp, email);
+    try {
+      await sendMail(otp, email);
+    } catch (mailErr) {
+      console.error("Registration email error:", mailErr.message);
+    }
 
     return res.status(201).json({
       success: true,
@@ -70,59 +74,112 @@ export const register = async (req, res) => {
 
 // verify controller
 export const verify = async (req, res) => {
-  const { email, otp } = req.body;
-
-  const user = await userModel.findOne({ email });
-  if (!user)
-    return res.status(400).json({ message: "User not found", success: false });
-
-  if (otp != user.otp) {
-    return res.status(400).json({
-      success: false,
-      message: "OTP Invalid",
-    });
-  }
-
-  if (user.otpExpiry < new Date())
-    return res.status(400).json({ message: "OTP expired", success: false });
-
-  user.otp = null;
-  user.otpExpiry = null;
-  user.isVerified = true;
-  await user.save();
-
-  return res
-    .status(200)
-    .json({ success: true, message: "Email verified successfully" });
-};
-
-// reVerify
-
-export const reVerify = async (req, res) => {
   try {
-    const { email } = req.body;
-    const user = await userModel.findOne({ email });
+    const token =
+      req.headers?.authorization?.replace(/^Bearer\s+/i, "") ||
+      req.body?.token ||
+      req.cookies?.["token"];
+
+    // 1. Verification via token link
+    if (token) {
+      const decoded = TokenDecode(token);
+      if (decoded && (decoded.email || decoded.user_id)) {
+        const query = decoded.user_id
+          ? { _id: decoded.user_id }
+          : { email: decoded.email };
+        const user = await userModel.findOne(query);
+        if (user) {
+          user.isVerified = true;
+          user.otp = null;
+          user.otpExpiry = null;
+          await user.save();
+          return res
+            .status(200)
+            .json({ success: true, message: "Email verified successfully" });
+        }
+      }
+    }
+
+    // 2. Verification via OTP
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const user = await userModel.findOne({ email: email.trim().toLowerCase() });
     if (!user) {
       return res
         .status(400)
-        .json({ success: false, message: "user not found" });
+        .json({ message: "User not found", success: false });
     }
 
-    const token = await TokenEncode(user.email, user._id);
-    res.cookie("token", token, {
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: "none",
-      secure: true,
+    if (String(user.otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP Invalid",
+      });
+    }
+
+    if (user.otpExpiry && user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: "OTP expired", success: false });
+    }
+
+    user.otp = null;
+    user.otpExpiry = null;
+    user.isVerified = true;
+    await user.save();
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Email verified successfully" });
+  } catch (error) {
+    console.error("Verify error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal verify error",
+      error: error.message,
     });
+  }
+};
 
-    await sendMail(token, email);
+// reVerify
+export const reVerify = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
+    }
 
+    const user = await userModel.findOne({ email: email.trim().toLowerCase() });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+
+    const token = TokenEncode(user.email, user._id, user.role);
     user.token = token;
     await user.save();
+
+    try {
+      await sendMail(otp, user.email);
+    } catch (mailErr) {
+      console.error("Reverify sendMail error:", mailErr.message);
+    }
+
     return res.status(200).json({
       success: true,
-      message: "Verification email sent again successfully",
+      message: "Verification OTP sent again successfully",
       token: user.token,
     });
   } catch (error) {
@@ -151,7 +208,9 @@ export const login = async (req, res) => {
         .json({ message: "password is required", success: false });
     }
 
-    let user = await userModel.findOne({ email: email.trim() });
+    let user = await userModel.findOne({
+      email: { $regex: `^${email.trim()}$`, $options: "i" },
+    });
     if (!user) {
       return res
         .status(400)
@@ -161,7 +220,7 @@ export const login = async (req, res) => {
     if (user.isVerified === false) {
       return res
         .status(400)
-        .json({ message: "Please verify fast", success: false });
+        .json({ message: "Please verify first", success: false });
     }
 
     // Match password
@@ -173,12 +232,13 @@ export const login = async (req, res) => {
     }
 
     const token = TokenEncode(user.email, user._id, user.role);
+    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("token", token, {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      sameSite: "none",
-      secure: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
     });
 
     user.isLoggedIn = true;
@@ -199,10 +259,11 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    const isProduction = process.env.NODE_ENV === "production";
     res.clearCookie("token", {
       httpOnly: true,
-      sameSite: "none",
-      secure: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
     });
     return res
       .status(200)
@@ -228,7 +289,9 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    const user = await userModel.findOne({ email });
+    const user = await userModel.findOne({
+      email: { $regex: `^${email.trim()}$`, $options: "i" },
+    });
 
     if (!user) {
       return res.status(400).json({
@@ -244,7 +307,16 @@ export const forgotPassword = async (req, res) => {
     user.otpExpiry = otpExpiry;
 
     await user.save();
-    await sendOtp(otp, email);
+
+    try {
+      await sendOtp(otp, user.email);
+    } catch (mailErr) {
+      console.error("Forgot password email error:", mailErr.message);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP email. Please try again later.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -277,7 +349,9 @@ export const verifyOTP = async (req, res) => {
         .json({ success: false, message: "Email is required" });
     }
 
-    const user = await userModel.findOne({ email });
+    const user = await userModel.findOne({
+      email: { $regex: `^${email.trim()}$`, $options: "i" },
+    });
 
     if (!user) {
       return res
@@ -343,7 +417,9 @@ export const changePassword = async (req, res) => {
       });
     }
     const { email } = req.params;
-    const user = await userModel.findOne({ email });
+    const user = await userModel.findOne({
+      email: { $regex: `^${email.trim()}$`, $options: "i" },
+    });
     if (!user) {
       return res
         .status(400)
@@ -353,6 +429,13 @@ export const changePassword = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Password do not match" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
     }
 
     const hashPassword = await bcrypt.hash(newPassword, 10);
@@ -451,7 +534,7 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    const { firstName, lastName, phone, address, city, zipCode } = req.body;
+    const { firstName, lastName, phone, address, city, zipCode, postCode } = req.body;
 
     let profileImage = existUser.profileImage;
 
@@ -473,16 +556,20 @@ export const updateUser = async (req, res) => {
       profileImage = uploadedImage;
     }
 
+    const finalPostCode = postCode || zipCode || existUser.postCode;
+    const finalZipCode = zipCode || postCode || existUser.zipCode;
+
     const user = await userModel
       .findByIdAndUpdate(
         id,
         {
-          firstName,
-          lastName,
-          phone,
-          address,
-          city,
-          zipCode,
+          firstName: firstName !== undefined ? firstName : existUser.firstName,
+          lastName: lastName !== undefined ? lastName : existUser.lastName,
+          phone: phone !== undefined ? phone : existUser.phone,
+          address: address !== undefined ? address : existUser.address,
+          city: city !== undefined ? city : existUser.city,
+          postCode: finalPostCode,
+          zipCode: finalZipCode,
           profileImage,
         },
         { new: true },
@@ -530,11 +617,8 @@ export const userSearch = async (req, res) => {
       { firstName: { $regex: search, $options: "i" } },
       { lastName: { $regex: search, $options: "i" } },
       { email: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
     ];
-
-    if (!isNaN(search)) {
-      conditions.push({ phone: Number(search) });
-    }
 
     const users = await userModel.find({ $or: conditions });
 
@@ -635,7 +719,7 @@ export const createAddress = async (req, res) => {
       return res.status(400).json({success:false,message:"User ID is required"})
     }
 
-    const { address, city, postCode, phone } = req.body;
+    const { address, city, postCode, zipCode, phone } = req.body;
 
     if(!address){
       return res.status(400).json({success:false,message:"Address is required"})
@@ -646,13 +730,11 @@ export const createAddress = async (req, res) => {
     if(!phone){
       return res.status(400).json({success:false,message:"Phone is required"})
     }
-    if(!postCode){
-      return res.status(400).json({success:false,message:"Post code is required"})
-    }
+    const finalPostCode = postCode || zipCode || "";
 
     const createAddress = await userModel.findByIdAndUpdate(
       userId,
-      { address, city, postCode, phone },
+      { address, city, postCode: finalPostCode, zipCode: finalPostCode, phone },
       { new: true }
     );
 

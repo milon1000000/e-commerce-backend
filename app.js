@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -22,10 +25,33 @@ import orderRoute from "./routes/orderRouters.js";
 const app = express();
 
 // CORS setup
+const allowedOrigins = [
+  "https://e-commerce-frontend-9dce.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: ["https://e-commerce-frontend-9dce.onrender.com"],
+    origin: (origin, callback) => {
+      // allow requests with no origin (like mobile apps, curl, postman) or if origin is allowed or in development mode
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "user_id"],
   }),
 );
 

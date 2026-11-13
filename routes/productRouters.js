@@ -15,6 +15,6 @@ productRoute.post(
 productRoute.get("/getAllProduct",getAllProduct);
 productRoute.delete("/delete-product/:productId",AuthMiddleware,deleteProduct);
 productRoute.put("/update-product/:productId",AuthMiddleware,upload.array("productImg",5),updateProduct)
-productRoute.get("/search-product",AuthMiddleware,search)
+productRoute.get("/search-product", search);
 
 export default productRoute;

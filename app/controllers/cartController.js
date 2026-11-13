@@ -23,7 +23,8 @@ export const getCart = async (req, res) => {
 export const addToCart = async (req, res) => {
   try {
     const userId = req.headers.user_id;
-    const { productId } = req.body;
+    const { productId, quantity } = req.body;
+    const qtyToAdd = Number(quantity) > 0 ? Number(quantity) : 1;
 
     const product = await Product.findById(productId);
     if (!product) {
@@ -34,7 +35,7 @@ export const addToCart = async (req, res) => {
     if (!cart) {
       cart = new Cart({
         userId,
-        items: [{ productId, quantity: 1, price: product.productPrice }],
+        items: [{ productId, quantity: qtyToAdd, price: product.productPrice }],
       });
     } else {
       const itemIndex = cart.items.findIndex(
@@ -42,9 +43,9 @@ export const addToCart = async (req, res) => {
       );
 
       if (itemIndex > -1) {
-        cart.items[itemIndex].quantity += 1;
+        cart.items[itemIndex].quantity += qtyToAdd;
       } else {
-        cart.items.push({ productId, quantity: 1, price: product.productPrice });
+        cart.items.push({ productId, quantity: qtyToAdd, price: product.productPrice });
       }
     }
 
@@ -109,7 +110,8 @@ export const updateQuantity = async (req, res) => {
 export const removeFromCart = async (req, res) => {
   try {
     const userId = req.headers.user_id;
-    const { productId } = req.body;
+    const productId =
+      req.body?.productId || req.params?.productId || req.query?.productId;
 
     if (!userId || !productId)
       return res.status(400).json({ success: false, message: "Invalid data" });

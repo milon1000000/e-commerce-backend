@@ -192,25 +192,45 @@ export const updateProduct = async (req, res) => {
 
     const { productName, productDes, productPrice, category, brand } = req.body;
 
-    let productImg = product.productImg;
+    let productPriceNumber = product.productPrice;
+    if (productPrice !== undefined && productPrice !== "") {
+      const parsed = Number(productPrice);
+      if (!isNaN(parsed)) {
+        productPriceNumber = parsed;
+      }
+    }
 
-    if (req.files && req.files.length > 0) {
-      if (product.productImg && product.productImg.length > 0) {
-        for (const img of product.productImg) {
+    let productImg = [...(product.productImg || [])];
+
+    if (req.body.existingImages !== undefined) {
+      const existingIds = Array.isArray(req.body.existingImages)
+        ? req.body.existingImages.map(String)
+        : [String(req.body.existingImages)];
+
+      const imagesToKeep = [];
+      for (const img of productImg) {
+        const idStr = img._id?.toString() || img.public_id;
+        if (existingIds.includes(idStr) || existingIds.includes(img.url)) {
+          imagesToKeep.push(img);
+        } else {
           if (img.public_id) {
-            await cloudinary.uploader.destroy(img.public_id);
+            try {
+              await cloudinary.uploader.destroy(img.public_id);
+            } catch (err) {
+              console.log("Error destroying old image:", err.message);
+            }
           }
         }
       }
+      productImg = imagesToKeep;
+    }
 
-      productImg = [];
-
+    if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const result = await uploadOnCloudinary(
           file.path,
           "ecommerce-products",
         );
-
         productImg.push(result);
       }
     }
@@ -218,11 +238,11 @@ export const updateProduct = async (req, res) => {
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
       {
-        productName,
-        productDes,
-        productPrice,
-        category,
-        brand,
+        productName: productName || product.productName,
+        productDes: productDes || product.productDes,
+        productPrice: productPriceNumber,
+        category: category || product.category,
+        brand: brand || product.brand,
         productImg,
       },
       { new: true },

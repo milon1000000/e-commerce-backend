@@ -11,17 +11,35 @@ const store_id = process.env.STORE_ID;
 const store_password = process.env.STORE_PASSWORD;
 const is_live = false;
 
+const getBackendUrl = () =>
+  process.env.BACKEND_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://e-commerce-backend-byuj.onrender.com"
+    : `http://localhost:${process.env.PORT || 5000}`);
+
+const getFrontendUrl = () =>
+  process.env.FRONTEND_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://e-commerce-frontend-9dce.onrender.com"
+    : "http://localhost:5173");
+
 export const paymentBkash = async (req, res) => {
   try {
-    const { paymentId } = req.body;
+    const userId = req.headers.user_id || req.body.paymentId;
+    const user = await User.findById(userId);
 
-    const cart = await Cart.findOne({ userId: paymentId });
-    const user = await User.findById(paymentId);
-
-    if (!cart) {
+    if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: "Cart not found" });
+        .json({ success: false, message: "User not found" });
+    }
+
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart || !cart.items || cart.items.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Cart is empty or not found" });
     }
 
     const order = await Order.create({
@@ -43,17 +61,18 @@ export const paymentBkash = async (req, res) => {
     });
 
     const tran_id = order._id.toString();
+    const backendUrl = getBackendUrl();
 
     const data = {
       total_amount: cart.totalPrice,
       currency: "BDT",
       tran_id: tran_id,
 
-      success_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/success/${tran_id}`,
-      fail_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/fail/${tran_id}`,
-      cancel_url: `https://e-commerce-backend-byuj.onrender.com/api/v1/order/payment-bkash/fail/${tran_id}`,
+      success_url: `${backendUrl}/api/v1/order/payment-bkash/success/${tran_id}`,
+      fail_url: `${backendUrl}/api/v1/order/payment-bkash/fail/${tran_id}`,
+      cancel_url: `${backendUrl}/api/v1/order/payment-bkash/fail/${tran_id}`,
 
-      ipn_url: "https://e-commerce-backend-byuj.onrender.com/ipn",
+      ipn_url: `${backendUrl}/ipn`,
 
       shipping_method: "Courier",
       product_name: "Cart Items",
@@ -106,7 +125,8 @@ export const handleSuccess = async (req, res) => {
       { new: true },
     );
 
-    res.redirect(`https://e-commerce-frontend-9dce.onrender.com/success`);
+    const frontendUrl = getFrontendUrl();
+    res.redirect(`${frontendUrl}/success`);
   } catch (error) {
     console.log(error);
     res.status(500).send("Payment success error");
@@ -118,7 +138,8 @@ export const handleFail = async (req, res) => {
 
     await Order.findByIdAndDelete(tran_id);
 
-    res.redirect(`https://e-commerce-frontend-9dce.onrender.com/fail`);
+    const frontendUrl = getFrontendUrl();
+    res.redirect(`${frontendUrl}/fail`);
   } catch (error) {
     console.log(error);
     res.status(500).send("Payment failed error");
@@ -172,11 +193,13 @@ export const showUserOrders = async (req, res) => {
 };
 
 export const getAllOrdersAdmin = async (req, res) => {
-  const adminId=req.headers.user_id;
+  const adminId = req.headers.user_id;
   try {
-    const admin=await User.findById(adminId);
-    if(admin.role !=="admin"){
-      return res.status(400).json({success:false,message:"Only admin get all orders",})
+    const admin = await User.findById(adminId);
+    if (!admin || admin.role !== "admin") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only admin get all orders" });
     }
     const orders = await Order.find()
       .sort({ createdAt: -1 })
