@@ -232,7 +232,8 @@ export const login = async (req, res) => {
     }
 
     const token = TokenEncode(user.email, user._id, user.role);
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction =
+      process.env.NODE_ENV === "production" || !!process.env.VERCEL;
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -259,7 +260,8 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction =
+      process.env.NODE_ENV === "production" || !!process.env.VERCEL;
     res.clearCookie("token", {
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",

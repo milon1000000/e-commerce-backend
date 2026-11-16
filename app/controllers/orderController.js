@@ -13,14 +13,14 @@ const is_live = false;
 
 const getBackendUrl = () =>
   process.env.BACKEND_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://e-commerce-backend-byuj.onrender.com"
+  (process.env.NODE_ENV === "production" || process.env.VERCEL
+    ? "https://e-commerce-backend-mern.vercel.app"
     : `http://localhost:${process.env.PORT || 5000}`);
 
 const getFrontendUrl = () =>
   process.env.FRONTEND_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://e-commerce-frontend-9dce.onrender.com"
+  (process.env.NODE_ENV === "production" || process.env.VERCEL
+    ? "https://frontend-gules-seven-89.vercel.app"
     : "http://localhost:5173");
 
 export const paymentBkash = async (req, res) => {

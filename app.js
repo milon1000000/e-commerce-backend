@@ -27,6 +27,7 @@ const app = express();
 
 // CORS setup
 const allowedOrigins = [
+  "https://frontend-gules-seven-89.vercel.app",
   "https://e-commerce-frontend-9dce.onrender.com",
   "http://localhost:5173",
   "http://localhost:5174",
@@ -54,7 +55,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "user_id"],
+    allowedHeaders: ["Content-Type", "Authorization", "user_id", "token"],
   }),
 );
 
