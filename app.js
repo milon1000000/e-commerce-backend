@@ -90,7 +90,7 @@ export const connectDB = async () => {
 connectDB();
 
 // Root Health Check (Never times out, always returns 200 on Vercel)
-app.get("/", (req, res) => {
+app.get(["/", "/api"], (req, res) => {
   res.status(200).json({
     status: "ok",
     message: "E-Commerce Backend API is running successfully on Vercel!",
