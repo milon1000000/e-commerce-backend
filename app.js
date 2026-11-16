@@ -70,44 +70,51 @@ app.use(limiter);
 // Cache
 app.set("etag", WEB_CACHE);
 
-// Routes
-app.use("/api/v1/user", userRouter);
-app.use("/api/v1/product", productRoute);
-app.use("/api/v1/cart", cartRouter);
-app.use("/api/v1/order", orderRoute);
-
-app.get("/", (req, res) => {
-  res.json({
-    message: "NODE/EXPRESS IS RUNNING!",
-  });
-});
-
 let isConnected = false;
 
 export const connectDB = async () => {
   if (isConnected && mongoose.connection.readyState === 1) return;
 
   try {
-    await mongoose.connect(DATABASE);
+    await mongoose.connect(DATABASE, {
+      serverSelectionTimeoutMS: 5000,
+    });
     isConnected = true;
-    console.log("MongoDB connected");
+    console.log("MongoDB connected successfully");
   } catch (err) {
-    console.log("MongoDB error:", err);
+    console.error("MongoDB connection error:", err.message);
   }
 };
 
-// Ensure database is connected for every incoming request (crucial for Serverless)
-app.use(async (req, res, next) => {
+// Immediate connection attempt
+connectDB();
+
+// Root Health Check (Never times out, always returns 200 on Vercel)
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "E-Commerce Backend API is running successfully on Vercel!",
+    database: isConnected || mongoose.connection.readyState === 1 ? "connected" : "connecting or disconnected",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Middleware to ensure DB is connected before processing /api/v1 routes
+app.use("/api/v1", async (req, res, next) => {
   if (!isConnected || mongoose.connection.readyState !== 1) {
     await connectDB();
   }
   next();
 });
 
-connectDB();
+// Routes
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/product", productRoute);
+app.use("/api/v1/cart", cartRouter);
+app.use("/api/v1/order", orderRoute);
 
-// Start Server locally or when not in serverless environment
-if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+// Start Server locally (never on Vercel Serverless)
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log("Server started on port " + PORT);
   });
