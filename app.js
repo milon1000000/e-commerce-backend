@@ -55,7 +55,8 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "user_id", "token"],
+    allowedHeaders: ["Content-Type", "Authorization", "user_id", "token", "Accept", "Origin", "X-Requested-With"],
+    optionsSuccessStatus: 200,
   }),
 );
 
