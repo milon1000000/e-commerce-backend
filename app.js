@@ -75,8 +75,14 @@ let isConnected = false;
 export const connectDB = async () => {
   if (isConnected && mongoose.connection.readyState === 1) return;
 
+  const dbUri = (DATABASE || "").trim().replace(/^["']|["']$/g, "");
+  if (!dbUri) {
+    console.error("MongoDB error: DATABASE URI is empty");
+    return;
+  }
+
   try {
-    await mongoose.connect(DATABASE, {
+    await mongoose.connect(dbUri, {
       serverSelectionTimeoutMS: 5000,
     });
     isConnected = true;
@@ -112,6 +118,23 @@ app.use("/api/v1/user", userRouter);
 app.use("/api/v1/product", productRoute);
 app.use("/api/v1/cart", cartRouter);
 app.use("/api/v1/order", orderRoute);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// Global Error Handler (prevents serverless crash)
+app.use((err, req, res, next) => {
+  console.error("Internal Server Error:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
+});
 
 // Start Server locally (never on Vercel Serverless)
 if (!process.env.VERCEL) {

@@ -1,7 +1,7 @@
 {
   "name": "ecommerce-backend",
   "version": "1.0.0",
-  "main": "app.js",
+  "main": "api/index.js",
   "type": "module",
   "scripts": {
     "start": "node app.js",
@@ -13,7 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "body-parser": "^2.2.0",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",

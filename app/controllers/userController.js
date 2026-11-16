@@ -1,5 +1,5 @@
 import userModel from "../model/userModel.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { TokenDecode, TokenEncode } from "../utility/tokenUtility.js";
 import { sendMail } from "../utility/emailUtility.js";
 import { sendOtp } from "../utility/sentOtp.js";
